@@ -1,1 +1,14 @@
-{}
+{
+  "users": [],
+  "sales": 0,
+  "demo": [],
+  "config": {
+    "welcome_text": "🔥 Premium Content Access",
+    "welcome_img": null,
+    "upi": "upi@bank",
+    "price": 99,
+    "qr_img": null,
+    "qr_text": "💎 Complete your payment below",
+    "channel": null
+  }
+}
