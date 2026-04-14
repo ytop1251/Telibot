@@ -2,7 +2,7 @@ import json, os, time, random, asyncio
 from telegram import *
 from telegram.ext import *
 
-TOKEN = os.getenv("TOKEN")
+TOKEN = os.getenv("8615480627:AAHOpdXg33NEMGPgPEV4HYTUOYtYDIsxiP4")
 ADMIN_ID = 6363477372
 DATA_FILE = "data.json"
 
