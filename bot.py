@@ -1,9 +1,9 @@
-import json, os, time, random, asyncio
+import json, os, time, asyncio
 from telegram import *
 from telegram.ext import *
 
-TOKEN = "8615480627:AAHOpdXg33NEMGPgPEV4HYTUOYtYDIsxiP4"
-ADMIN_ID = 6363477372
+TOKEN = "8615480627:AAHOpdXg33NEMGPgPEV4HYTUOYtYDIsxiP4"   # 👉 replace your token here
+ADMIN_ID = 6363477372 # replace yoyr id
 DATA_FILE = "data.json"
 
 # ================= LOAD =================
@@ -37,10 +37,6 @@ config = data["config"]
 admin_state = {}
 demo_index = {}
 
-# ================= CODE =================
-def gen_code():
-    return str(random.randint(100000, 999999))
-
 # ================= START =================
 async def start(update: Update, context):
     user = update.effective_user
@@ -57,51 +53,46 @@ async def start(update: Update, context):
     ]
 
     txt = f"""
-🎓 *Welcome to Premium Access*
+🎓 Welcome to Premium Access
 
 {config['welcome_text']}
 
-💰 *Price:* ₹{config['price']}
+💰 Price: ₹{config['price']}
 
 👇 Choose an option below:
 """
 
     if config["welcome_img"]:
-        await msg.reply_photo(config["welcome_img"], caption=txt, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(kb))
+        await msg.reply_photo(config["welcome_img"], caption=txt, reply_markup=InlineKeyboardMarkup(kb))
     else:
-        await msg.reply_text(txt, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(kb))
+        await msg.reply_text(txt, reply_markup=InlineKeyboardMarkup(kb))
 
 # ================= PAYMENT =================
-async def payment(q, context):
-    code = gen_code()
-    context.user_data["code"] = code
-
+async def payment(q):
     kb = [
         [InlineKeyboardButton("✅ I HAVE PAID", callback_data="PAID")],
         [InlineKeyboardButton("🔙 Back", callback_data="BACK")]
     ]
 
     txt = f"""
-💎 *Complete Your Payment*
+💎 Complete Your Payment
 
-💰 *Amount:* ₹{config['price']}
-💳 *UPI ID:* `{config['upi']}`
+💰 Amount: ₹{config['price']}
+💳 UPI ID: {config['upi']}
 
-🆔 *Your Code:* `{code}`
-
-📌 *Steps:*
-1. Pay using UPI
-2. Add code in note
-3. Send screenshot
-
-⚠️ Without code → not approved
+📌 Steps:
+1. Send payment
+2. Take screenshot
+3. Click "I HAVE PAID"
 """
 
     if config["qr_img"]:
-        await q.message.edit_media(InputMediaPhoto(config["qr_img"], caption=txt, parse_mode="Markdown"),
-                                   reply_markup=InlineKeyboardMarkup(kb))
+        await q.message.edit_media(
+            InputMediaPhoto(config["qr_img"], caption=txt),
+            reply_markup=InlineKeyboardMarkup(kb)
+        )
     else:
-        await q.message.edit_text(txt, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(kb))
+        await q.message.edit_text(txt, reply_markup=InlineKeyboardMarkup(kb))
 
 # ================= DEMO =================
 async def show_demo(msg, i):
@@ -131,7 +122,7 @@ async def user_btn(update: Update, context):
     uid = q.from_user.id
 
     if q.data == "BUY":
-        await payment(q, context)
+        await payment(q)
 
     elif q.data == "DEMO":
         demo_index[uid] = 0
@@ -150,33 +141,31 @@ async def user_btn(update: Update, context):
         await start(update, context)
 
     elif q.data == "PAID":
-        await q.message.reply_text("📸 Send screenshot with code visible")
+        await q.message.reply_text("📸 Send your payment screenshot")
 
-# ================= PROOF =================
+# ================= PAYMENT PROOF =================
 async def proof(update: Update, context):
-    if update.effective_user.id == ADMIN_ID:
+    user = update.effective_user
+
+    if user.id == ADMIN_ID:
         return
 
-    code = context.user_data.get("code", "")
-    caption = update.message.caption or ""
-
-    if code not in caption:
-        await update.message.reply_text("❌ Code missing! Please send correct screenshot.")
+    if not update.message.photo:
         return
 
     await context.bot.send_photo(
         ADMIN_ID,
         update.message.photo[-1].file_id,
-        caption=f"💰 Payment Request\n👤 {update.effective_user.id}\nCode: {code}",
+        caption=f"💰 Payment Request\n👤 {user.first_name}\n🆔 {user.id}",
         reply_markup=InlineKeyboardMarkup([
             [
-                InlineKeyboardButton("✅ Approve", callback_data=f"A_{update.effective_user.id}"),
-                InlineKeyboardButton("❌ Reject", callback_data=f"R_{update.effective_user.id}")
+                InlineKeyboardButton("✅ Approve", callback_data=f"A_{user.id}"),
+                InlineKeyboardButton("❌ Reject", callback_data=f"R_{user.id}")
             ]
         ])
     )
 
-    await update.message.reply_text("⏳ Waiting for admin approval")
+    await update.message.reply_text("⏳ Screenshot received. Please wait for approval.")
 
 # ================= APPROVE =================
 async def approve(update: Update, context):
@@ -188,21 +177,27 @@ async def approve(update: Update, context):
     if q.data.startswith("A_"):
 
         if not config["channel"]:
-            await context.bot.send_message(uid, "❌ Channel not set")
+            await context.bot.send_message(uid, "❌ Channel not set by admin.")
             return
 
         link = await context.bot.create_chat_invite_link(
-            config["channel"], member_limit=1, expire_date=int(time.time())+300
+            config["channel"],
+            member_limit=1,
+            expire_date=int(time.time()) + 300
         )
 
-        await context.bot.send_message(uid, f"🎉 Approved!\n🔗 {link.invite_link}")
+        await context.bot.send_message(
+            uid,
+            f"🎉 Payment Approved!\n\n🔗 Join here:\n{link.invite_link}\n\n⚠️ Link valid for 5 minutes."
+        )
+
         data["sales"] += config["price"]
         save()
 
         await q.edit_message_caption("✅ Approved")
 
     else:
-        await context.bot.send_message(uid, "❌ Payment rejected")
+        await context.bot.send_message(uid, "❌ Payment rejected.")
         await q.edit_message_caption("❌ Rejected")
 
 # ================= ADMIN =================
@@ -304,12 +299,12 @@ app = ApplicationBuilder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("admin", admin))
 
-app.add_handler(CallbackQueryHandler(user_btn))
-app.add_handler(CallbackQueryHandler(admin_btn))
-app.add_handler(CallbackQueryHandler(approve, pattern="^(A_|R_)"))
+app.add_handler(CallbackQueryHandler(approve, pattern="^(A_|R_)$"))
+app.add_handler(CallbackQueryHandler(admin_btn, pattern="^(DASH|WELCOME|QR|UPI|PRICE|DEMO_ADMIN|CHANNEL|BROADCAST)$"))
+app.add_handler(CallbackQueryHandler(user_btn, pattern="^(BUY|DEMO|NEXT|PREV|BACK|PAID)$"))
 
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, admin_text))
-app.add_handler(MessageHandler(filters.PHOTO, proof))
+app.add_handler(MessageHandler(filters.PHOTO & ~filters.User(user_id=ADMIN_ID), proof))
 app.add_handler(MessageHandler(filters.PHOTO | filters.VIDEO, admin_media))
 
 print("🚀 BOT RUNNING")
