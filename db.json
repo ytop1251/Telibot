@@ -1,0 +1,13 @@
+{
+  "users": [],
+  "products": [],
+  "payments": [],
+  "demo": [],
+  "config": {
+    "welcome_text": "🎓 Welcome to Premium Store",
+    "welcome_img": null,
+    "upi": "yourupi@bank",
+    "channel": null,
+    "earnings": 0
+  }
+}
